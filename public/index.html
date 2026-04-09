@@ -33,3 +33,983 @@ body { font-family: 'DM Sans', sans-serif; background: #ECEEF4; color: var(--gra
   display: flex; align-items: center; justify-content: space-between;
   box-shadow: 0 1px 6px rgba(0,0,0,0.07);
 }
+.app-title { font-size: 15px; font-weight: 600; }
+.app-subtitle { font-size: 11px; color: var(--gray-400); margin-top: 1px; }
+
+.controls-bar {
+  background: white; border-bottom: 1px solid var(--gray-200);
+  padding: 0 24px; height: var(--h-controls);
+  position: sticky; top: var(--h-appbar); z-index: 290;
+  display: flex; gap: 10px; align-items: center; flex-wrap: nowrap; overflow-x: auto;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+}
+.legend-bar {
+  background: #F5F6FA; border-bottom: 1px solid var(--gray-200);
+  padding: 0 24px; height: var(--h-legend);
+  position: sticky; top: calc(var(--h-appbar) + var(--h-controls)); z-index: 280;
+  display: flex; gap: 14px; align-items: center; flex-wrap: nowrap; overflow-x: auto;
+}
+
+/* ─── CONTROLS ELEMENTS ──────────────────────── */
+.view-tabs { display: flex; background: var(--gray-100); border-radius: var(--radius); padding: 3px; gap: 2px; flex-shrink: 0; }
+.view-tab { padding: 5px 12px; border-radius: 6px; font-size: 12px; font-weight: 500; cursor: pointer; color: var(--gray-500); border: none; background: transparent; transition: all .12s; white-space: nowrap; }
+.view-tab.active { background: white; color: var(--gray-900); box-shadow: 0 1px 3px rgba(0,0,0,.10); }
+.day-pill { padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 500; cursor: pointer; border: 1.5px solid var(--gray-200); background: white; color: var(--gray-500); transition: all .12s; white-space: nowrap; flex-shrink: 0; }
+.day-pill.active { border-color: var(--blue); background: var(--blue-light); color: var(--blue); }
+.person-pill { padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 500; cursor: pointer; border: 1.5px solid transparent; transition: all .12s; display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+.sep { width: 1px; height: 22px; background: var(--gray-200); flex-shrink: 0; }
+.lbl { font-size: 10px; font-weight: 700; color: var(--gray-400); letter-spacing: .06em; white-space: nowrap; flex-shrink: 0; }
+.export-btn { padding: 5px 12px; border-radius: var(--radius); border: 1px solid var(--gray-200); background: white; font-size: 11px; font-weight: 500; color: var(--gray-700); cursor: pointer; flex-shrink: 0; }
+
+.legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--gray-500); white-space: nowrap; flex-shrink: 0; }
+.legend-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+.edit-hint { margin-left: auto; font-size: 10px; color: var(--gray-400); flex-shrink: 0; }
+
+/* ─── MAIN ───────────────────────────────────── */
+.main { padding: 16px 24px; }
+.stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px,1fr)); gap: 10px; margin-bottom: 16px; }
+.stat-card { background: white; border-radius: var(--radius-lg); padding: 13px 15px; border: 1px solid var(--gray-200); }
+.stat-label { font-size: 10px; font-weight: 600; color: var(--gray-400); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 4px; }
+.stat-value { font-size: 23px; font-weight: 600; font-family: 'DM Mono', monospace; }
+.stat-sub { font-size: 10px; color: var(--gray-400); margin-top: 3px; }
+
+/* ─── DAY SECTION ────────────────────────────── */
+/* NO overflow:hidden — it breaks sticky children */
+.day-section {
+  background: white;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--gray-200);
+  margin-bottom: 12px;
+  /* clip children to rounded corners without overflow:hidden */
+  isolation: isolate;
+}
+
+/* Sticky day banner */
+.day-header {
+  padding: 0 18px; height: var(--h-dayheader);
+  display: flex; align-items: center; justify-content: space-between;
+  background: #1E3A5F;
+  position: sticky;
+  top: calc(var(--h-appbar) + var(--h-controls) + var(--h-legend));
+  z-index: 60;
+  /* keep rounded top corners on the header itself */
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  /* when stuck, square off top corners so it sits flush */
+}
+/* when day-header is stuck (scrolled past card top), square corners */
+.day-header.is-stuck {
+  border-radius: 0;
+  box-shadow: 0 2px 8px rgba(0,0,0,.15);
+}
+
+.day-name { font-size: 14px; font-weight: 600; color: white; }
+.day-range { font-size: 11px; color: rgba(255,255,255,.55); margin-top: 1px; }
+.day-badge { font-size: 10px; font-weight: 600; padding: 3px 9px; border-radius: 20px; background: rgba(255,255,255,.15); color: white; }
+.day-header { cursor: pointer; transition: background .12s; }
+.day-header:hover { background: #243f6a; }
+.day-header-left { display: flex; align-items: center; gap: 12px; }
+.day-header-right { display: flex; align-items: center; gap: 10px; }
+.day-chevron {
+  width: 22px; height: 22px; border-radius: 50%;
+  background: rgba(255,255,255,.13); color: white;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; flex-shrink: 0;
+  transition: transform .22s cubic-bezier(.4,0,.2,1);
+}
+.day-chevron.collapsed { transform: rotate(-90deg); }
+.day-summary-pills { display: flex; gap: 5px; flex-wrap: wrap; }
+.day-summary-pill { font-size: 10px; font-weight: 500; padding: 2px 7px; border-radius: 20px; background: rgba(255,255,255,.10); color: rgba(255,255,255,.75); }
+.day-body {
+  overflow: hidden;
+  transition: max-height .28s cubic-bezier(.4,0,.2,1), opacity .2s ease;
+  opacity: 1;
+}
+.day-body.collapsed { max-height: 0 !important; opacity: 0; }
+
+/* schedule table */
+.schedule-wrap { overflow-x: auto; border-radius: 0 0 var(--radius-lg) var(--radius-lg); }
+.schedule-table { width: 100%; border-collapse: collapse; min-width: 520px; }
+
+/* Column headers — static, NOT sticky (sticky breaks inside overflow-x parent) */
+.schedule-table thead th {
+  padding: 8px 10px; font-size: 10px; font-weight: 700; letter-spacing: .05em;
+  text-transform: uppercase; text-align: center; color: var(--gray-500);
+  border-bottom: 2px solid var(--gray-200); background: var(--gray-50);
+  position: static;
+}
+.schedule-table thead th:first-child { text-align: left; width: 74px; }
+
+.schedule-table td {
+  padding: 4px 7px; border-bottom: 0.5px solid var(--gray-100);
+  text-align: center; vertical-align: middle; height: 33px;
+}
+/* sticky time column */
+.schedule-table td:first-child {
+  text-align: right; font-size: 10px; color: var(--gray-400);
+  font-family: 'DM Mono', monospace; white-space: nowrap; padding-right: 12px;
+  background: var(--gray-50); border-right: 1px solid var(--gray-100);
+  position: sticky; left: 0; z-index: 10;
+}
+.schedule-table thead th:first-child { left: 0; z-index: 55; }
+.schedule-table tbody tr:hover td { background: #F4F6FF; }
+.schedule-table tbody tr:hover td:first-child { background: var(--gray-100); }
+.schedule-table tbody tr:last-child td { border-bottom: none; }
+
+/* cell badges */
+.cell-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 3px 6px; border-radius: 5px; font-size: 10px; font-weight: 600;
+  width: 100%; min-height: 24px; cursor: pointer; transition: filter .1s, transform .1s;
+  user-select: none;
+}
+.cell-badge:hover { filter: brightness(.92); transform: scale(.96); }
+.cell-active  { background: var(--blue-light);   color: var(--blue);   }
+.cell-break   { background: var(--amber-light);  color: var(--amber);  }
+.cell-meeting { background: var(--purple-light); color: var(--purple); }
+.cell-off     { background: var(--gray-100);     color: var(--gray-400); }
+.cell-empty   { background: transparent; color: var(--gray-300); cursor: pointer; font-size: 14px; }
+.cell-empty:hover { background: var(--gray-100); color: var(--gray-500); }
+.conf-break-row td { background: var(--green-light) !important; }
+.conf-break-full { font-size: 11px; font-weight: 600; color: var(--green); padding: 8px; text-align: center; }
+
+/* ─── PERSON / ZONE VIEWS ────────────────────── */
+.person-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px,1fr)); gap: 12px; }
+.person-card { background: white; border-radius: var(--radius-lg); border: 1px solid var(--gray-200); overflow: hidden; }
+.person-card-header { padding: 11px 14px; display: flex; align-items: center; gap: 9px; border-bottom: 1px solid var(--gray-100); }
+.avatar { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; flex-shrink: 0; }
+.person-info-name { font-size: 13px; font-weight: 600; }
+.person-info-sub { font-size: 10px; color: var(--gray-400); margin-top: 1px; }
+.person-slots { padding: 3px 0; }
+.person-slot { display: flex; align-items: center; justify-content: space-between; padding: 5px 13px; border-bottom: 0.5px solid var(--gray-100); font-size: 11px; }
+.person-slot:last-child { border-bottom: none; }
+.slot-day { color: var(--gray-400); font-size: 10px; min-width: 26px; }
+.slot-time { color: var(--gray-500); font-family: 'DM Mono', monospace; font-size: 10px; flex: 1; text-align: center; }
+.slot-zone-badge { padding: 2px 7px; border-radius: 4px; font-size: 10px; font-weight: 600; }
+
+.zone-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px,1fr)); gap: 12px; }
+.zone-card { background: white; border-radius: var(--radius-lg); border: 1px solid var(--gray-200); overflow: hidden; }
+.zone-card-header { padding: 10px 14px; font-size: 13px; font-weight: 600; border-bottom: 1px solid var(--gray-100); display: flex; align-items: center; gap: 7px; background: var(--gray-50); }
+.zone-dot { width: 7px; height: 7px; border-radius: 50%; }
+.zone-slot { display: flex; align-items: center; gap: 7px; padding: 5px 13px; border-bottom: 0.5px solid var(--gray-100); font-size: 11px; }
+.zone-slot:last-child { border-bottom: none; }
+.zone-time { color: var(--gray-400); font-family: 'DM Mono', monospace; font-size: 10px; min-width: 54px; }
+.mini-avatar { width: 19px; height: 19px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 7px; font-weight: 700; }
+
+.hidden { display: none !important; }
+
+/* ─── EDIT MODAL ─────────────────────────────── */
+.modal-overlay {
+  display: none; position: fixed; inset: 0; z-index: 999;
+  background: rgba(10,20,40,.5); backdrop-filter: blur(4px);
+  align-items: center; justify-content: center;
+}
+.modal-overlay.open { display: flex; }
+.modal {
+  background: white; border-radius: 16px; width: 340px; max-width: 94vw;
+  box-shadow: 0 24px 64px rgba(0,0,0,.22); overflow: hidden;
+  animation: mIn .16s ease;
+}
+@keyframes mIn { from { opacity:0; transform:scale(.93) translateY(8px); } to { opacity:1; transform:scale(1) translateY(0); } }
+
+.modal-header { background: #1E3A5F; padding: 15px 18px; display: flex; align-items: flex-start; justify-content: space-between; }
+.modal-title { font-size: 14px; font-weight: 600; color: white; }
+.modal-sub { font-size: 11px; color: rgba(255,255,255,.55); margin-top: 2px; }
+.modal-close { width: 26px; height: 26px; border-radius: 50%; border: none; background: rgba(255,255,255,.12); color: white; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background .12s; flex-shrink: 0; }
+.modal-close:hover { background: rgba(255,255,255,.22); }
+
+.modal-body { padding: 16px 18px; }
+.modal-label { font-size: 10px; font-weight: 700; color: var(--gray-400); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 10px; }
+.status-options { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.status-opt {
+  padding: 12px 10px; border-radius: 10px; border: 2px solid transparent;
+  cursor: pointer; text-align: center; font-size: 12px; font-weight: 600;
+  transition: all .12s; line-height: 1.4;
+}
+.status-opt .opt-icon { font-size: 18px; display: block; margin-bottom: 4px; }
+.status-opt:hover { transform: scale(1.03); }
+.status-opt.selected { outline: 3px solid var(--gray-900); outline-offset: 1px; }
+.opt-active  { background: var(--blue-light);   color: var(--blue);   }
+.opt-break   { background: var(--amber-light);  color: var(--amber);  }
+.opt-meeting { background: var(--purple-light); color: var(--purple); }
+.opt-off     { background: var(--gray-100);     color: var(--gray-500); }
+
+.modal-footer { padding: 0 18px 16px; display: flex; gap: 8px; justify-content: flex-end; }
+.btn-cancel { padding: 8px 15px; border-radius: var(--radius); border: 1px solid var(--gray-200); background: white; font-size: 12px; font-weight: 500; color: var(--gray-500); cursor: pointer; }
+.btn-save   { padding: 8px 18px; border-radius: var(--radius); border: none; background: var(--blue); font-size: 12px; font-weight: 600; color: white; cursor: pointer; transition: background .12s; }
+.btn-save:hover { background: #1444C8; }
+
+.unsaved-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--amber); margin-left: 5px; vertical-align: middle; }
+
+@media print {
+  .controls-bar, .header-right, .legend-bar, .stats-row, .modal-overlay { display: none !important; }
+  .app-header, .day-header, .schedule-table thead th { position: static !important; }
+  body { background: white; }
+  .day-section { break-inside: avoid; }
+}
+@media (max-width: 640px) {
+  .main, .controls-bar, .app-header, .legend-bar { padding-left: 12px; padding-right: 12px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ─── STICKY APP HEADER ────────────────────── -->
+<header class="app-header">
+  <div>
+    <div class="app-title">Event Staffing Schedule</div>
+    <div class="app-subtitle" id="sync-status">April 13–17, 2026 &nbsp;·&nbsp; 5 team members &nbsp;·&nbsp; <span style="color:var(--gray-300)">Connecting…</span></div>
+  </div>
+  <div style="display:flex;gap:8px;align-items:center">
+    <div id="user-badge" style="display:flex;align-items:center;gap:6px;padding:4px 10px;background:var(--gray-100);border-radius:20px;cursor:pointer;font-size:11px;font-weight:500;color:var(--gray-600)" onclick="promptName()">
+      <div id="user-dot" style="width:7px;height:7px;border-radius:50%;background:var(--gray-300)"></div>
+      <span id="user-label">Set your name</span>
+    </div>
+    <button class="export-btn" onclick="window.print()">🖨 Print</button>
+  </div>
+</header>
+
+<!-- ─── NAME MODAL ────────────────────────────── -->
+<div id="name-overlay" style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(10,20,40,.5);backdrop-filter:blur(4px);align-items:center;justify-content:center">
+  <div style="background:white;border-radius:16px;width:320px;max-width:92vw;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,.22);animation:mIn .16s ease">
+    <div style="background:#1E3A5F;padding:16px 20px">
+      <div style="font-size:14px;font-weight:600;color:white">Who are you?</div>
+      <div style="font-size:11px;color:rgba(255,255,255,.55);margin-top:2px">Your name will appear when you save changes</div>
+    </div>
+    <div style="padding:18px 20px">
+      <input id="name-input" type="text" placeholder="e.g. Yani, Rebecca…" maxlength="30"
+        style="width:100%;padding:10px 14px;border:1.5px solid var(--gray-200);border-radius:8px;font-size:14px;font-family:inherit;outline:none"
+        onkeydown="if(event.key==='Enter')saveName()">
+    </div>
+    <div style="padding:0 20px 18px;display:flex;gap:8px;justify-content:flex-end">
+      <button onclick="closeName()" style="padding:8px 15px;border-radius:8px;border:1px solid var(--gray-200);background:white;font-size:12px;cursor:pointer">Skip</button>
+      <button onclick="saveName()" style="padding:8px 18px;border-radius:8px;border:none;background:var(--blue);color:white;font-size:12px;font-weight:600;cursor:pointer">Save name</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── STICKY CONTROLS ──────────────────────── -->
+<div class="controls-bar">
+  <div class="view-tabs">
+    <button class="view-tab active" onclick="setView('timeline')">Timeline</button>
+    <button class="view-tab" onclick="setView('person')">By person</button>
+    <button class="view-tab" onclick="setView('zone')">By zone</button>
+  </div>
+  <div class="sep"></div>
+  <span class="lbl">Days</span>
+  <div id="day-filters" style="display:flex;gap:5px"></div>
+  <div class="sep"></div>
+  <span class="lbl">Staff</span>
+  <div id="person-filters" style="display:flex;gap:5px"></div>
+</div>
+
+<!-- ─── STICKY LEGEND ────────────────────────── -->
+<div class="legend-bar">
+  <span class="lbl">Legend</span>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--blue)"></div> On floor</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--amber)"></div> Break</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--purple)"></div> Meeting</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--green)"></div> Conf. break</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--gray-300)"></div> Off</div>
+  <div class="edit-hint">💡 Click any cell to edit</div>
+</div>
+
+<!-- ─── MAIN CONTENT ─────────────────────────── -->
+<div class="main">
+  <div class="stats-row" id="stats-row"></div>
+  <div id="view-timeline"></div>
+  <div id="view-person" class="hidden"></div>
+  <div id="view-zone"   class="hidden"></div>
+</div>
+
+<!-- ─── EDIT MODAL ───────────────────────────── -->
+<div class="modal-overlay" id="modal-overlay" onclick="handleOverlayClick(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="modal-title">Edit slot</div>
+        <div class="modal-sub"   id="modal-sub"></div>
+      </div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-label">Change status to:</div>
+      <div class="status-options">
+        <div class="status-opt opt-active"  id="opt-Active"  onclick="selectStatus('Active')">
+          <span class="opt-icon">✅</span>On floor
+        </div>
+        <div class="status-opt opt-break"   id="opt-Break"   onclick="selectStatus('Break')">
+          <span class="opt-icon">☕</span>Break
+        </div>
+        <div class="status-opt opt-meeting" id="opt-Meeting" onclick="selectStatus('Meeting')">
+          <span class="opt-icon">📋</span>Meeting
+        </div>
+        <div class="status-opt opt-off"     id="opt-Off"     onclick="selectStatus('Off')">
+          <span class="opt-icon">—</span>Off shift
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn-save"   onclick="saveEdit()">Save ↵</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════
+// DATA
+// ════════════════════════════════════════════════
+const PEOPLE = ['Yani','Rebecca','Maria','Tamiko','Rodger'];
+const AVATARS = {
+  Yani:    { bg:'#DBEAFE', color:'#1D4ED8', init:'YN' },
+  Rebecca: { bg:'#FCE7F3', color:'#9D174D', init:'RB' },
+  Maria:   { bg:'#D1FAE5', color:'#065F46', init:'MA' },
+  Tamiko:  { bg:'#FEF3C7', color:'#92400E', init:'TK' },
+  Rodger:  { bg:'#EDE9FE', color:'#5B21B6', init:'RD' },
+};
+const ZONE_COLORS = {
+  Active:      { bg:'#EEF2FF', color:'#1A56E8' },
+  Break:       { bg:'#FEF3C7', color:'#92400E' },
+  Meeting:     { bg:'#EDE9FE', color:'#5B21B6' },
+  Off:         { bg:'#F3F4F6', color:'#9CA3AF' },
+};
+
+const ZONE_META = {
+  '2nd Floor': { dot:'#1A56E8', bg:'#EEF2FF', color:'#1A56E8' },
+  '3rd Floor': { dot:'#059669', bg:'#D1FAE5', color:'#065F46' },
+  'Lounge':    { dot:'#D97706', bg:'#FEF3C7', color:'#92400E' },
+  'Pod':       { dot:'#7C3AED', bg:'#EDE9FE', color:'#5B21B6' },
+  'Off':       { dot:'#9CA3AF', bg:'#F3F4F6', color:'#9CA3AF' },
+};
+const TIMES = [
+  '8:00 AM','8:30 AM','9:00 AM','9:30 AM','10:00 AM','10:30 AM',
+  '11:00 AM','11:30 AM','12:00 PM','12:30 PM','1:00 PM','1:30 PM',
+  '2:00 PM','2:30 PM','3:00 PM','3:30 PM','4:00 PM','4:30 PM','5:00 PM'
+];
+
+const RAW_DAYS = [
+  {
+    id:'mon', label:'Monday', date:'Apr 13', range:'Pod staffing: 1:00 PM – 5:00 PM', confBreak:null,
+    zones: { Yani:'Pod', Rebecca:'Pod', Maria:'Pod', Tamiko:'Pod', Rodger:'Pod' },
+    schedule:{
+      Yani:    {'11:30 AM':'Meeting','1:00 PM':'Active','1:30 PM':'Active','2:00 PM':'Active','2:30 PM':'Active','3:00 PM':'Active','3:30 PM':'Active','4:00 PM':'Active','4:30 PM':'Active','5:00 PM':'Active'},
+      Rebecca: {'11:30 AM':'Meeting','1:00 PM':'Active','1:30 PM':'Active','2:00 PM':'Active','2:30 PM':'Active','3:00 PM':'Active','3:30 PM':'Active','4:00 PM':'Active','4:30 PM':'Active','5:00 PM':'Active'},
+      Maria:   {'11:30 AM':'Meeting','1:00 PM':'Active','1:30 PM':'Active','2:00 PM':'Active','2:30 PM':'Active','3:00 PM':'Active','3:30 PM':'Active','4:00 PM':'Active','4:30 PM':'Active','5:00 PM':'Active'},
+      Tamiko:  {'11:30 AM':'Meeting','1:00 PM':'Active','1:30 PM':'Active','2:00 PM':'Active','2:30 PM':'Active','3:00 PM':'Active','3:30 PM':'Active','4:00 PM':'Active','4:30 PM':'Active','5:00 PM':'Active'},
+      Rodger:  {'11:30 AM':'Meeting','1:00 PM':'Active','1:30 PM':'Active','2:00 PM':'Active','2:30 PM':'Active','3:00 PM':'Active','3:30 PM':'Active','4:00 PM':'Active','4:30 PM':'Active','5:00 PM':'Active'},
+    }
+  },
+  {
+    id:'tue', label:'Tuesday', date:'Apr 14', range:'Pod staffing: 8:00 AM – 5:00 PM', confBreak:'12:30 PM',
+    zones: { Yani:'2nd Floor', Rebecca:'3rd Floor', Maria:'3rd Floor', Tamiko:'Lounge', Rodger:'Lounge' },
+    schedule:{
+      Yani:    {'8:00 AM':'Active','8:30 AM':'Active','9:00 AM':'Active','9:30 AM':'Active','10:00 AM':'Active','10:30 AM':'Break','11:00 AM':'Break','11:30 AM':'Active','12:00 PM':'Active','1:00 PM':'Active','1:30 PM':'Active','2:00 PM':'Active','2:30 PM':'Active','3:00 PM':'Break','3:30 PM':'Break','4:00 PM':'Active','4:30 PM':'Active','5:00 PM':'Active'},
+      Rebecca: {'8:00 AM':'Active','8:30 AM':'Active','9:00 AM':'Active','9:30 AM':'Active','10:00 AM':'Active','10:30 AM':'Active','11:00 AM':'Active','11:30 AM':'Break','12:00 PM':'Break','1:00 PM':'Active','1:30 PM':'Active','2:00 PM':'Active','2:30 PM':'Active','3:00 PM':'Active','3:30 PM':'Active','4:00 PM':'Break','4:30 PM':'Break','5:00 PM':'Active'},
+      Maria:   {'8:00 AM':'Active','8:30 AM':'Active','9:00 AM':'Active','9:30 AM':'Active','10:00 AM':'Break','10:30 AM':'Break','11:00 AM':'Active','11:30 AM':'Active','12:00 PM':'Active','1:00 PM':'Active','1:30 PM':'Break','2:00 PM':'Break','2:30 PM':'Active','3:00 PM':'Active','3:30 PM':'Active','4:00 PM':'Active','4:30 PM':'Active','5:00 PM':'Active'},
+      Tamiko:  {'8:00 AM':'Active','8:30 AM':'Active','9:00 AM':'Active','9:30 AM':'Active','10:00 AM':'Active','10:30 AM':'Active','11:00 AM':'Break','11:30 AM':'Break','12:00 PM':'Active','1:00 PM':'Active','1:30 PM':'Active','2:00 PM':'Active','2:30 PM':'Break','3:00 PM':'Break','3:30 PM':'Active','4:00 PM':'Active','4:30 PM':'Active','5:00 PM':'Active'},
+      Rodger:  {'8:00 AM':'Active','8:30 AM':'Active','9:00 AM':'Active','9:30 AM':'Active','10:00 AM':'Active','10:30 AM':'Active','11:00 AM':'Active','11:30 AM':'Break','12:00 PM':'Break','1:00 PM':'Active','1:30 PM':'Active','2:00 PM':'Active','2:30 PM':'Active','3:00 PM':'Active','3:30 PM':'Break','4:00 PM':'Break','4:30 PM':'Active','5:00 PM':'Active'},
+    }
+  },
+  {
+    id:'wed', label:'Wednesday', date:'Apr 15', range:'Pod staffing: 8:00 AM – 5:00 PM', confBreak:null,
+    zones: { Yani:'Pod', Rebecca:'Pod', Maria:'Pod', Tamiko:'Pod', Rodger:'Pod' },
+    schedule:{
+      Yani:    Object.fromEntries(TIMES.map(t=>[t,'Active'])),
+      Rebecca: Object.fromEntries(TIMES.map(t=>[t, t==='11:00 AM'?'Meeting':'Active'])),
+      Maria:   Object.fromEntries(TIMES.map(t=>[t,'Active'])),
+      Tamiko:  Object.fromEntries(TIMES.map(t=>[t,'Active'])),
+      Rodger:  Object.fromEntries(TIMES.map(t=>[t,'Active'])),
+    }
+  },
+  {
+    id:'thu', label:'Thursday', date:'Apr 16', range:'Pod staffing: 8:00 AM – 5:00 PM', confBreak:null,
+    zones: { Yani:'Pod', Rebecca:'Pod', Maria:'Pod', Tamiko:'Pod', Rodger:'Pod' },
+    schedule:{
+      Yani:    Object.fromEntries(TIMES.map(t=>[t,['12:00 PM','12:30 PM','3:00 PM'].includes(t)?'Meeting':'Active'])),
+      Rebecca: Object.fromEntries(TIMES.map(t=>[t,['12:00 PM','12:30 PM'].includes(t)?'Meeting':'Active'])),
+      Maria:   Object.fromEntries(TIMES.map(t=>[t,'Active'])),
+      Tamiko:  Object.fromEntries(TIMES.map(t=>[t,'Active'])),
+      Rodger:  Object.fromEntries(TIMES.map(t=>[t,'Active'])),
+    }
+  },
+  {
+    id:'fri', label:'Friday', date:'Apr 17', range:'Pod staffing: 8:00 AM – 11:00 AM', confBreak:null,
+    zones: { Yani:'Pod', Rebecca:'Pod', Maria:'Off', Tamiko:'Pod', Rodger:'Pod' },
+    schedule:{
+      Yani:    Object.fromEntries(TIMES.slice(0,7).map(t=>[t,'Active'])),
+      Rebecca: Object.fromEntries(TIMES.slice(0,7).map(t=>[t,'Active'])),
+      Maria:   {},
+      Tamiko:  Object.fromEntries(TIMES.slice(0,7).map(t=>[t,'Active'])),
+      Rodger:  Object.fromEntries(TIMES.slice(0,7).map(t=>[t,'Active'])),
+    }
+  },
+];
+
+// Working mutable copy
+let DAYS = JSON.parse(JSON.stringify(RAW_DAYS));
+let hasUnsaved = false;
+
+// ════════════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════════════
+let activeView = 'timeline';
+let activeDays = new Set(DAYS.map(d=>d.id));
+let activePeople = new Set(PEOPLE);
+let editCtx = null;
+let selectedStatus = null;
+
+// ════════════════════════════════════════════════
+// FILTERS
+// ════════════════════════════════════════════════
+function buildFilters() {
+  document.getElementById('day-filters').innerHTML =
+    DAYS.map(d=>`<button class="day-pill ${activeDays.has(d.id)?'active':''}" onclick="toggleDay('${d.id}')">${d.label.slice(0,3)} ${d.date.split(' ')[1]}</button>`).join('');
+
+  document.getElementById('person-filters').innerHTML =
+    PEOPLE.map(p => {
+      const av=AVATARS[p], on=activePeople.has(p);
+      return `<button class="person-pill" onclick="togglePerson('${p}')"
+        style="background:${on?av.bg:'var(--gray-100)'};color:${on?av.color:'var(--gray-400)'};border-color:${on?av.color+'44':'var(--gray-200)'}">
+        <div style="width:14px;height:14px;border-radius:50%;background:${on?av.color:'var(--gray-300)'};display:flex;align-items:center;justify-content:center;font-size:7px;font-weight:700;color:white">${av.init[0]}</div>
+        ${p}</button>`;
+    }).join('');
+}
+function toggleDay(id) {
+  if(activeDays.has(id)){if(activeDays.size>1)activeDays.delete(id);}else activeDays.add(id);
+  buildFilters(); renderAll();
+}
+function togglePerson(p) {
+  if(activePeople.has(p)){if(activePeople.size>1)activePeople.delete(p);}else activePeople.add(p);
+  buildFilters(); renderAll();
+}
+function setView(v) {
+  activeView=v;
+  document.querySelectorAll('.view-tab').forEach((t,i)=>t.classList.toggle('active',['timeline','person','zone'][i]===v));
+  ['timeline','person','zone'].forEach(n=>document.getElementById('view-'+n).classList.toggle('hidden',n!==v));
+  renderAll();
+}
+
+// ════════════════════════════════════════════════
+// STATS
+// ════════════════════════════════════════════════
+function renderStats() {
+  const fd=DAYS.filter(d=>activeDays.has(d.id)), pp=[...activePeople];
+  let a=0,b=0,m=0;
+  fd.forEach(day=>pp.forEach(p=>Object.values(day.schedule[p]||{}).forEach(v=>{
+    if(v==='Active')a++; if(v==='Break')b++; if(v==='Meeting')m++;
+  })));
+  document.getElementById('stats-row').innerHTML=`
+    <div class="stat-card"><div class="stat-label">Days</div><div class="stat-value">${fd.length}</div><div class="stat-sub">${fd.map(d=>d.date).join(' · ')}</div></div>
+    <div class="stat-card"><div class="stat-label">Staff</div><div class="stat-value">${pp.length}</div><div class="stat-sub">${pp.join(', ')}</div></div>
+    <div class="stat-card"><div class="stat-label">On-floor slots</div><div class="stat-value">${a}</div><div class="stat-sub">30-min slots</div></div>
+    <div class="stat-card"><div class="stat-label">Breaks</div><div class="stat-value">${b}</div><div class="stat-sub">Across all days</div></div>
+    <div class="stat-card"><div class="stat-label">Meetings</div><div class="stat-value">${m}</div><div class="stat-sub">Internal</div></div>`;
+}
+
+// ════════════════════════════════════════════════
+// COLLAPSE STATE — tracks which days are collapsed
+// ════════════════════════════════════════════════
+const collapsedDays = new Set(); // empty = all expanded by default
+
+function toggleDayCollapse(dayId) {
+  const body = document.getElementById('body-' + dayId);
+  const chevron = document.getElementById('chevron-' + dayId);
+  const header = body ? body.previousElementSibling : null;
+  if (!body || !header) return;
+
+  const pillContainer = header.querySelector('.day-summary-pills');
+
+  if (collapsedDays.has(dayId)) {
+    // EXPAND
+    collapsedDays.delete(dayId);
+    body.style.maxHeight = body.scrollHeight + 'px';
+    body.classList.remove('collapsed');
+    chevron.classList.remove('collapsed');
+    if (pillContainer) pillContainer.remove();
+    body.addEventListener('transitionend', () => {
+      if (!collapsedDays.has(dayId)) body.style.maxHeight = 'none';
+    }, { once: true });
+  } else {
+    // COLLAPSE — first inject summary pills
+    collapsedDays.add(dayId);
+    const day = DAYS.find(d => d.id === dayId);
+    const pp = [...activePeople];
+    let active=0, brk=0, mtg=0;
+    pp.forEach(p => Object.values(day.schedule[p]||{}).forEach(v=>{
+      if(v==='Active') active++; if(v==='Break') brk++; if(v==='Meeting') mtg++;
+    }));
+    const pills = [
+      active ? `<span class="day-summary-pill">✅ ${active} on-floor</span>` : '',
+      brk    ? `<span class="day-summary-pill">☕ ${brk} breaks</span>` : '',
+      mtg    ? `<span class="day-summary-pill">📋 ${mtg} meetings</span>` : '',
+    ].filter(Boolean).join('');
+    const right = header.querySelector('.day-header-right');
+    if (right && !pillContainer) {
+      const div = document.createElement('div');
+      div.className = 'day-summary-pills';
+      div.innerHTML = pills;
+      right.insertBefore(div, right.firstChild);
+    }
+    body.style.maxHeight = body.scrollHeight + 'px';
+    requestAnimationFrame(() => {
+      body.classList.add('collapsed');
+      chevron.classList.add('collapsed');
+    });
+  }
+}
+
+// ════════════════════════════════════════════════
+// TIMELINE
+// ════════════════════════════════════════════════
+function badgeClass(status) {
+  if(!status||status==='Off') return 'cell-off';
+  if(status==='Break') return 'cell-break';
+  if(status==='Meeting') return 'cell-meeting';
+  return 'cell-active';
+}
+function badgeText(status) {
+  if(!status||status==='Off') return '—';
+  if(status==='Break') return 'Break';
+  if(status==='Meeting') return 'Mtg';
+  return 'On floor';
+}
+
+function renderTimeline() {
+  const pp=[...activePeople], fd=DAYS.filter(d=>activeDays.has(d.id));
+  let html='';
+  fd.forEach(day=>{
+    const rows = TIMES.filter(t =>
+      t===day.confBreak || pp.some(p=>day.schedule[p] && day.schedule[p][t])
+    );
+    if(!rows.length) return;
+
+    // Summary counts for collapsed pills
+    let active=0, brk=0, mtg=0;
+    pp.forEach(p => Object.values(day.schedule[p]||{}).forEach(v=>{
+      if(v==='Active') active++; if(v==='Break') brk++; if(v==='Meeting') mtg++;
+    }));
+    const pills = [
+      active ? `<span class="day-summary-pill">✅ ${active} on-floor</span>` : '',
+      brk    ? `<span class="day-summary-pill">☕ ${brk} breaks</span>` : '',
+      mtg    ? `<span class="day-summary-pill">📋 ${mtg} meetings</span>` : '',
+    ].filter(Boolean).join('');
+
+    const isCollapsed = collapsedDays.has(day.id);
+
+    // Column headers — inside thead so they align perfectly with td columns
+    const thCols = pp.map(p => {
+      const av = AVATARS[p];
+      return `<th>
+        <div style="display:flex;align-items:center;justify-content:center;gap:5px">
+          <div style="width:18px;height:18px;border-radius:50%;background:${av.bg};color:${av.color};font-size:8px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${av.init}</div>
+          ${p}
+        </div>
+      </th>`;
+    }).join('');
+
+    html += `<div class="day-section">
+      <div class="day-header" onclick="toggleDayCollapse('${day.id}')">
+        <div class="day-header-left">
+          <div id="chevron-${day.id}" class="day-chevron${isCollapsed?' collapsed':''}">▾</div>
+          <div>
+            <div class="day-name">${day.label}, ${day.date}</div>
+            <div class="day-range">${day.range}</div>
+          </div>
+        </div>
+        <div class="day-header-right">
+          ${isCollapsed ? `<div class="day-summary-pills">${pills}</div>` : ''}
+          <div class="day-badge">Pod staffing</div>
+        </div>
+      </div>
+      <div class="day-body${isCollapsed?' collapsed':''}" id="body-${day.id}" style="${isCollapsed?'max-height:0;':''}">
+        <div class="schedule-wrap">
+          <table class="schedule-table">
+            <thead><tr><th>Time</th>${thCols}</tr></thead>
+            <tbody>`;
+
+    rows.forEach(t => {
+      if(t===day.confBreak){
+        html+=`<tr class="conf-break-row"><td></td><td class="conf-break-full" colspan="${pp.length}">☕ Conference break — all staff off floor &nbsp;(${t} – 1:00 PM)</td></tr>`;
+        return;
+      }
+      html+=`<tr><td>${t}</td>`;
+      pp.forEach(p=>{
+        const sched=day.schedule[p]||{};
+        const hasShift=Object.keys(sched).length>0;
+        const v=sched[t];
+        if(v){
+          html+=`<td><div class="cell-badge ${badgeClass(v)}" onclick="openEdit('${day.id}','${p}','${t}')">${badgeText(v)}</div></td>`;
+        } else if(hasShift){
+          html+=`<td><div class="cell-badge cell-empty" onclick="openEdit('${day.id}','${p}','${t}')">+</div></td>`;
+        } else {
+          html+=`<td></td>`;
+        }
+      });
+      html+=`</tr>`;
+    });
+    html+=`</tbody></table></div></div></div>`;
+  });
+  document.getElementById('view-timeline').innerHTML = html || '<p style="color:var(--gray-400);text-align:center;padding:40px">No days selected</p>';
+
+  fd.forEach(day => {
+    if (!collapsedDays.has(day.id)) {
+      const body = document.getElementById('body-' + day.id);
+      if (body) body.style.maxHeight = 'none';
+    }
+  });
+}
+
+// ════════════════════════════════════════════════
+// PERSON VIEW
+// ════════════════════════════════════════════════
+function renderPersonView() {
+  const pp=[...activePeople], fd=DAYS.filter(d=>activeDays.has(d.id));
+  let html='<div class="person-grid">';
+  pp.forEach(p=>{
+    const av=AVATARS[p];
+    html+=`<div class="person-card">
+      <div class="person-card-header">
+        <div class="avatar" style="background:${av.bg};color:${av.color}">${av.init}</div>
+        <div><div class="person-info-name">${p}</div><div class="person-info-sub">${fd.length} day${fd.length!==1?'s':''}</div></div>
+      </div><div class="person-slots">`;
+    fd.forEach(day=>{
+      const slots=day.schedule[p]||{};
+      if(!Object.keys(slots).length){
+        html+=`<div class="person-slot"><span class="slot-day">${day.label.slice(0,3)}</span><span class="slot-time">—</span><span class="slot-zone-badge" style="background:var(--gray-100);color:var(--gray-400)">Off</span></div>`;
+        return;
+      }
+      let groups=[],last=null;
+      TIMES.forEach(t=>{
+        const v=slots[t]||null;
+        if(v&&last&&last.status===v) last.end=t;
+        else if(v){last={start:t,end:t,status:v};groups.push(last);}
+        else last=null;
+      });
+      groups.forEach(g=>{
+        const zc=ZONE_COLORS[g.status]||ZONE_COLORS.Active;
+        html+=`<div class="person-slot">
+          <span class="slot-day">${day.label.slice(0,3)}</span>
+          <span class="slot-time">${g.start}–${g.end}</span>
+          <span class="slot-zone-badge" style="background:${zc.bg};color:${zc.color}">${g.status}</span>
+        </div>`;
+      });
+    });
+    html+=`</div></div>`;
+  });
+  html+='</div>';
+  document.getElementById('view-person').innerHTML=html;
+}
+
+// ════════════════════════════════════════════════
+// ZONE VIEW — table per day, zones as columns
+// ════════════════════════════════════════════════
+function renderZoneView() {
+  const pp=[...activePeople], fd=DAYS.filter(d=>activeDays.has(d.id));
+  let html='';
+
+  fd.forEach(day => {
+    // Get unique zones for this day (filtered by active people)
+    const zoneMap = day.zones || {};
+    const uniqueZones = [...new Set(pp.map(p => zoneMap[p] || 'Pod').filter(z => z !== 'Off'))];
+
+    // Active time rows
+    const rows = TIMES.filter(t => pp.some(p => day.schedule[p] && day.schedule[p][t]));
+    if (!rows.length) return;
+
+    // thead: Time + one column per zone
+    const zoneThs = uniqueZones.map(z => {
+      const zm = ZONE_META[z] || ZONE_META['Pod'];
+      return `<th>
+        <div style="display:flex;align-items:center;justify-content:center;gap:6px">
+          <div style="width:9px;height:9px;border-radius:50%;background:${zm.dot};flex-shrink:0"></div>
+          <span style="color:${zm.color}">${z}</span>
+        </div>
+        <div style="font-size:9px;font-weight:400;color:var(--gray-400);margin-top:2px;text-transform:none;letter-spacing:0">
+          ${pp.filter(p=>(zoneMap[p]||'Pod')===z).join(', ')}
+        </div>
+      </th>`;
+    }).join('');
+
+    html += `<div class="day-section">
+      <div class="day-header" onclick="toggleDayCollapse('zone-${day.id}')">
+        <div class="day-header-left">
+          <div id="chevron-zone-${day.id}" class="day-chevron${collapsedDays.has('zone-'+day.id)?' collapsed':''}">▾</div>
+          <div>
+            <div class="day-name">${day.label}, ${day.date}</div>
+            <div class="day-range">${uniqueZones.length} zone${uniqueZones.length!==1?'s':''} · ${pp.filter(p=>(zoneMap[p]||'Pod')!=='Off').length} staff</div>
+          </div>
+        </div>
+        <div class="day-header-right">
+          <div class="day-badge">By zone</div>
+        </div>
+      </div>
+      <div class="day-body${collapsedDays.has('zone-'+day.id)?' collapsed':''}" id="body-zone-${day.id}">
+        <div class="schedule-wrap">
+          <table class="schedule-table">
+            <thead><tr><th>Time</th>${zoneThs}</tr></thead>
+            <tbody>`;
+
+    rows.forEach(t => {
+      if(t === day.confBreak) {
+        html += `<tr class="conf-break-row"><td></td><td class="conf-break-full" colspan="${uniqueZones.length}">☕ Conference break — all staff off floor &nbsp;(${t} – 1:00 PM)</td></tr>`;
+        return;
+      }
+      html += `<tr><td>${t}</td>`;
+      uniqueZones.forEach(zone => {
+        // People in this zone
+        const zoneStaff = pp.filter(p => (zoneMap[p]||'Pod') === zone);
+        const zm = ZONE_META[zone] || ZONE_META['Pod'];
+
+        // Build chips for each person in zone showing their status at this time
+        const chips = zoneStaff.map(p => {
+          const v = (day.schedule[p]||{})[t];
+          const av = AVATARS[p];
+          if (!v) return '';
+          let chipBg, chipColor, chipLabel;
+          if (v === 'Break')   { chipBg='#FEF3C7'; chipColor='#92400E'; chipLabel='Break'; }
+          else if (v==='Meeting'){ chipBg='#EDE9FE'; chipColor='#5B21B6'; chipLabel='Mtg'; }
+          else                  { chipBg=av.bg;    chipColor=av.color;  chipLabel=p; }
+          return `<div style="display:inline-flex;align-items:center;gap:3px;padding:2px 6px;border-radius:4px;background:${chipBg};color:${chipColor};font-size:10px;font-weight:600;margin:1px">
+            <div style="width:14px;height:14px;border-radius:50%;background:${av.bg};color:${av.color};font-size:7px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${av.init}</div>
+            ${chipLabel}
+          </div>`;
+        }).filter(Boolean).join('');
+
+        html += `<td style="vertical-align:middle">
+          <div style="display:flex;flex-wrap:wrap;gap:2px;justify-content:center;padding:2px">
+            ${chips || '<span style="color:var(--gray-300);font-size:10px">—</span>'}
+          </div>
+        </td>`;
+      });
+      html += `</tr>`;
+    });
+
+    html += `</tbody></table></div></div></div>`;
+  });
+
+  document.getElementById('view-zone').innerHTML = html || '<p style="color:var(--gray-400);text-align:center;padding:40px">No days selected</p>';
+
+  // restore expanded state
+  fd.forEach(day => {
+    const body = document.getElementById('body-zone-' + day.id);
+    if (body && !collapsedDays.has('zone-'+day.id)) body.style.maxHeight = 'none';
+  });
+}
+
+function renderAll() {
+  renderStats();
+  if(activeView==='timeline') renderTimeline();
+  if(activeView==='person')   renderPersonView();
+  if(activeView==='zone')     renderZoneView();
+  requestAnimationFrame(observeStickyHeaders);
+}
+
+// ════════════════════════════════════════════════
+// EDIT MODAL
+// ════════════════════════════════════════════════
+function openEdit(dayId, person, time) {
+  const day=DAYS.find(d=>d.id===dayId);
+  const current=(day.schedule[person]||{})[time]||'Off';
+  editCtx={dayId,person,time};
+  selectedStatus=current;
+
+  document.getElementById('modal-title').textContent=`${person} · ${time}`;
+  document.getElementById('modal-sub').textContent=`${day.label}, ${day.date}`;
+  ['Active','Break','Meeting','Off'].forEach(s=>{
+    document.getElementById('opt-'+s).classList.toggle('selected',s===current);
+  });
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function selectStatus(s) {
+  selectedStatus=s;
+  ['Active','Break','Meeting','Off'].forEach(k=>{
+    document.getElementById('opt-'+k).classList.toggle('selected',k===s);
+  });
+}
+
+function saveEdit() {
+  if(!editCtx||!selectedStatus) return;
+  const {dayId,person,time}=editCtx;
+  const day=DAYS.find(d=>d.id===dayId);
+  if(!day.schedule[person]) day.schedule[person]={};
+  if(selectedStatus==='Off') delete day.schedule[person][time];
+  else day.schedule[person][time]=selectedStatus;
+  closeModal();
+  renderAll();
+  syncToKV(); // push to shared KV store
+}
+
+function handleOverlayClick(e) {
+  if(e.target===document.getElementById('modal-overlay')) closeModal();
+}
+function closeModal() {
+  document.getElementById('modal-overlay').classList.remove('open');
+  editCtx=null; selectedStatus=null;
+}
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape') { closeModal(); closeName(); }
+  if(e.key==='Enter'&&document.getElementById('modal-overlay').classList.contains('open')) saveEdit();
+});
+
+// ════════════════════════════════════════════════
+// STUCK DETECTION
+// ════════════════════════════════════════════════
+function observeStickyHeaders() {
+  const stickyTop = 56 + 48 + 30;
+  document.querySelectorAll('.day-header').forEach(header => {
+    const prev = header.previousElementSibling;
+    if(prev && prev.classList.contains('sticky-sentinel')) prev.remove();
+    const sentinel = document.createElement('div');
+    sentinel.className = 'sticky-sentinel';
+    sentinel.style.cssText = 'height:1px;margin-bottom:-1px;pointer-events:none;visibility:hidden;';
+    header.parentElement.insertBefore(sentinel, header);
+    const obs = new IntersectionObserver(([e]) => {
+      header.classList.toggle('is-stuck', !e.isIntersecting);
+    }, { rootMargin: `-${stickyTop + 1}px 0px 0px 0px`, threshold: 0 });
+    obs.observe(sentinel);
+  });
+}
+
+// ════════════════════════════════════════════════
+// USER NAME
+// ════════════════════════════════════════════════
+let userName = localStorage.getItem('staffing_username') || '';
+const USER_COLORS = ['#1A56E8','#059669','#D97706','#7C3AED','#DB2777','#0891B2'];
+function getUserColor() {
+  const idx = Math.abs(userName.split('').reduce((a,c)=>a+c.charCodeAt(0),0)) % USER_COLORS.length;
+  return USER_COLORS[idx] || '#1A56E8';
+}
+function updateUserBadge() {
+  const dot = document.getElementById('user-dot');
+  const lbl = document.getElementById('user-label');
+  if(userName) {
+    dot.style.background = getUserColor();
+    lbl.textContent = userName;
+  } else {
+    dot.style.background = 'var(--gray-300)';
+    lbl.textContent = 'Set your name';
+  }
+}
+function promptName() {
+  document.getElementById('name-input').value = userName;
+  document.getElementById('name-overlay').style.display = 'flex';
+  setTimeout(()=>document.getElementById('name-input').focus(), 50);
+}
+function saveName() {
+  const val = document.getElementById('name-input').value.trim();
+  if(val) { userName = val; localStorage.setItem('staffing_username', val); }
+  closeName();
+  updateUserBadge();
+}
+function closeName() {
+  document.getElementById('name-overlay').style.display = 'none';
+}
+
+// ════════════════════════════════════════════════
+// KV SYNC
+// ════════════════════════════════════════════════
+const API = '/api/schedule';
+let syncTimer = null;
+let lastSyncedAt = null;
+let isSyncing = false;
+
+function setSyncStatus(msg, color='var(--gray-400)') {
+  document.getElementById('sync-status').innerHTML =
+    `April 13–17, 2026 &nbsp;·&nbsp; 5 team members &nbsp;·&nbsp; <span style="color:${color}">${msg}</span>`;
+}
+
+async function loadFromKV() {
+  setSyncStatus('Connecting…', 'var(--gray-300)');
+  try {
+    const res = await fetch(API);
+    const json = await res.json();
+    if(json.ok && json.data && json.data.days) {
+      DAYS = json.data.days;
+      lastSyncedAt = json.data.updatedAt;
+      const who = json.data.editedBy ? ` by ${json.data.editedBy}` : '';
+      const when = lastSyncedAt ? ` · ${timeAgo(lastSyncedAt)}` : '';
+      setSyncStatus(`✓ Live${who}${when}`, '#059669');
+      buildFilters();
+      renderAll();
+    } else {
+      // No data yet in KV — use default and seed it
+      setSyncStatus('✓ Live · No saved data yet', '#059669');
+      await syncToKV(true);
+    }
+  } catch(e) {
+    setSyncStatus('⚠ Could not connect — using local data', '#D97706');
+  }
+}
+
+async function syncToKV(silent=false) {
+  if(isSyncing) return;
+  isSyncing = true;
+  if(!silent) setSyncStatus('Saving…', '#D97706');
+  try {
+    const res = await fetch(API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        days: DAYS,
+        editedBy: userName || 'Anonymous',
+        editedAt: new Date().toISOString()
+      })
+    });
+    const json = await res.json();
+    if(json.ok) {
+      lastSyncedAt = new Date().toISOString();
+      const who = userName ? ` by ${userName}` : '';
+      setSyncStatus(`✓ Saved${who} · just now`, '#059669');
+    } else {
+      setSyncStatus('⚠ Save failed', '#DC2626');
+    }
+  } catch(e) {
+    setSyncStatus('⚠ Save failed — check connection', '#DC2626');
+  }
+  isSyncing = false;
+}
+
+// Poll for remote changes every 15s so all users stay in sync
+function startPolling() {
+  setInterval(async () => {
+    if(isSyncing) return;
+    try {
+      const res = await fetch(API);
+      const json = await res.json();
+      if(json.ok && json.data && json.data.updatedAt !== lastSyncedAt) {
+        // Remote changed — reload silently
+        DAYS = json.data.days;
+        lastSyncedAt = json.data.updatedAt;
+        const who = json.data.editedBy ? ` by ${json.data.editedBy}` : '';
+        setSyncStatus(`✓ Updated${who} · just now`, '#059669');
+        buildFilters();
+        renderAll();
+      }
+    } catch(e) { /* silent fail on poll */ }
+  }, 15000);
+}
+
+function timeAgo(iso) {
+  const diff = Math.floor((Date.now() - new Date(iso)) / 1000);
+  if(diff < 60) return 'just now';
+  if(diff < 3600) return `${Math.floor(diff/60)}m ago`;
+  return `${Math.floor(diff/3600)}h ago`;
+}
+
+// ════════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════════
+updateUserBadge();
+// Ask for name on first visit
+if(!userName) setTimeout(promptName, 800);
+
+buildFilters();
+renderAll();
+requestAnimationFrame(observeStickyHeaders);
+
+// Load shared state from KV, then start polling
+loadFromKV().then(startPolling);
+</script>
+</body>
+</html>
